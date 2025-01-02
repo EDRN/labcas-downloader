@@ -2,8 +2,10 @@
 
 '''JPL LabCAS Downloader: download implementation.'''
 
-import logging, requests, urllib.parse, os
+from functools import partial
+from multiprocessing import Pool
 from pathlib import Path
+import logging, requests, urllib.parse, os, sys
 
 
 _logger   = logging.getLogger(__name__)
@@ -38,6 +40,10 @@ def _fetch(url: str, target: Path, auth: tuple):
     it's not None.
     '''
     _logger.debug('𝑓 _fetch %s to %s, auth=%r', url, target, auth is not None)
+
+    # Can we use _logger with multiprocessing?
+    print(f'𝑓 _fetch {url} to {target}', file=sys.stderr)
+
     rel_path = urllib.parse.unquote(url.split('id')[1][1:])
     response = requests.get(url, stream=True, auth=auth)
     os.makedirs(os.path.join(target, os.path.dirname(rel_path)), exist_ok=True)
@@ -46,11 +52,12 @@ def _fetch(url: str, target: Path, auth: tuple):
             if chunk: outfile.write(chunk)
 
 
-def download(url: str, data_id: str, target: Path, username: str, password: str):
+def download(url: str, data_id: str, target: Path, username: str, password: str, concurrency: int):
     '''Download data from LabCAS.
 
     This accesses the LabCAS API at ``url``, authenticating with ``username`` and ``password`` to
     retrieve the collection or dataset identified by ``data_id`` and writing the data to ``target``.
+    Multiple files will be downloaded at the same time based on ``concurrency``.
     '''
     if username and password:
         auth = (username, password)
@@ -58,5 +65,14 @@ def download(url: str, data_id: str, target: Path, username: str, password: str)
         auth = None
 
     files = _enumerate_files(url, data_id, auth)
-    for file in files:
-        _fetch(file, target, auth)
+    with Pool(processes=concurrency) as pool:
+        fetcher = partial(_fetch, target=target, auth=auth)
+        pool.map(fetcher, files)
+
+
+if __name__ == '__main__':
+    # For multiprocessing to work, we need this ifmain block; it doesn't actually need
+    # to do anything, though.
+    #
+    # Also, logging doesn't work in forked processes.
+    print('IN jpl.labcas.downloader._download ifmain', file=sys.stderr)

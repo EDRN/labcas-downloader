@@ -31,7 +31,8 @@
 # Items for Git to ignore
 
 # Python build, virtual environments, and buildouts
-venv
+venv/
+.venv/
 __pycache__/
 dist/
 build/

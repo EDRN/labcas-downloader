@@ -37,17 +37,23 @@ def main():
         '-a', '--api', default=os.getenv('LABCAS_API_URL', _defaultURL),
         help='API endpoint to access, defaults to LABCAS_API_URL [%(default)s]'
     )
+    parser.add_argument(
+        '-c', '--concurrency', default=10, help='№ of simultaneous downloads to support ([%(default)s])'
+    )
     parser.add_argument('-t', '--target', default=_defaultDir, help='Target directory [%(default)s]')
     parser.add_argument('data', metavar='DATA-ID', help='Collection or collection/dataset to retrieve')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(message)s")
+    concurrency = int(args.concurrency)
+    if concurrency < 1:
+        raise ValueError(f'Concurrency {concurrency} is too low; try at least 1')
     if args.username:
         password = args.password if args.password else getpass.getpass(f"{args.username}'s password: ")
     else:
         password = None
     target = Path(os.path.abspath(args.target))
     os.makedirs(target, exist_ok=True)
-    download(args.api, args.data, target, args.username, password)
+    download(args.api, args.data, target, args.username, password, concurrency)
     sys.exit(0)
 
 
