@@ -3,7 +3,7 @@
 '''JPL LabCAS Downloader: main entrypoint'''
 
 from . import VERSION
-from ._download import download
+from ._download import download_by_id, download_by_query
 from pathlib import Path
 import argparse, logging, getpass, os, sys
 
@@ -40,20 +40,31 @@ def main():
     parser.add_argument(
         '-c', '--concurrency', default=10, help='№ of simultaneous downloads to support ([%(default)s])'
     )
+    parser.add_argument(
+        '-f', '--file-query', action='store_true',
+        help='Use a file query instead of a collection/dataset identifier'
+    )
     parser.add_argument('-t', '--target', default=_defaultDir, help='Target directory [%(default)s]')
-    parser.add_argument('data', metavar='DATA-ID', help='Collection or collection/dataset to retrieve')
+    parser.add_argument('data', metavar='DATA-ID', help='Collection or collection/dataset to retrieve; or a file query')
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel, format="%(levelname)s %(message)s")
+
     concurrency = int(args.concurrency)
     if concurrency < 1:
         raise ValueError(f'Concurrency {concurrency} is too low; try at least 1')
+
     if args.username:
         password = args.password if args.password else getpass.getpass(f"{args.username}'s password: ")
     else:
         password = None
+
     target = Path(os.path.abspath(args.target))
     os.makedirs(target, exist_ok=True)
-    download(args.api, args.data, target, args.username, password, concurrency)
+
+    if args.file_query:
+        download_by_query(args.api, args.data, target, args.username, password, concurrency)
+    else:
+        download_by_id(args.api, args.data, target, args.username, password, concurrency)
     sys.exit(0)
 
 
